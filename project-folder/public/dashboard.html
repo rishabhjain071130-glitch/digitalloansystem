@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Society Loan System</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body class="dashboard-page">
+    <div class="bg-orb orb-a" aria-hidden="true"></div>
+    <div class="bg-orb orb-b" aria-hidden="true"></div>
+    <div class="bg-orb orb-c" aria-hidden="true"></div>
+
+    <div class="layout fade-in">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <p class="brand-chip">20 Members Society</p>
+          <h2>Loan Management</h2>
+        </div>
+
+        <nav class="side-nav">
+          <a class="active" href="/dashboard.html">Dashboard</a>
+          <a href="#memberManagement">Member Management</a>
+          <a href="#loanSection">Loan Management</a>
+          <a href="#analyticsSection">Analytics</a>
+        </nav>
+
+        <div class="admin-actions">
+          <button id="refreshBtn">Refresh Data</button>
+          <button id="monthlyCloseBtn">Run Monthly Closing</button>
+          <button id="downloadReportBtn">Download Report</button>
+          <button id="logoutBtn">Logout</button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div>
+            <h1>Fintech Dashboard</h1>
+            <p>20 Members Society Loan Management System</p>
+          </div>
+          <div class="topbar-badge">Professional Finance Panel</div>
+        </header>
+
+        <section class="cards" id="summaryCards" aria-live="polite"></section>
+
+        <section class="panel" id="memberManagement">
+          <div class="panel-head">
+            <h3>Member Management</h3>
+            <span>Max 20 members allowed</span>
+          </div>
+
+          <form id="memberManageForm" class="member-form-grid">
+            <input type="hidden" id="memberId" />
+            <input type="text" id="memberName" placeholder="Member Name" required />
+            <input type="email" id="memberEmail" placeholder="Member Email" required />
+            <input type="number" id="memberMonthlyCD" placeholder="Monthly CD" min="0" value="5000" />
+            <input type="password" id="memberPassword" placeholder="Assign Password" />
+            <button type="submit" id="saveMemberBtn">Add Member</button>
+            <button type="button" id="cancelEditBtn" class="btn-secondary">Cancel Edit</button>
+          </form>
+          <div id="memberFormMsg" class="status"></div>
+          <div id="generatedCredentialBox" class="credential-box hidden">
+            <div id="generatedCredentialText" class="credential-text"></div>
+            <button type="button" id="copyCredentialsBtn" class="btn-secondary btn-small">Copy Credentials</button>
+          </div>
+        </section>
+
+        <section class="panel chart-panel" id="analyticsSection">
+          <div class="panel-head">
+            <h3>Analytics Charts</h3>
+            <span>Balanced, responsive chart layout</span>
+          </div>
+
+          <div class="chart-grid">
+            <div class="chart-box chart-card">
+              <div class="panel-head mini-head">
+                <h3>CD Growth Chart</h3>
+              </div>
+              <div class="chart-container">
+                <canvas id="cdChart"></canvas>
+              </div>
+            </div>
+
+            <div class="chart-box chart-card">
+              <div class="panel-head mini-head">
+                <h3>Loan Distribution</h3>
+              </div>
+              <div class="chart-container">
+                <canvas id="loanDistributionChart"></canvas>
+              </div>
+            </div>
+
+            <div class="chart-box chart-card">
+              <div class="panel-head mini-head">
+                <h3>Dividend History</h3>
+              </div>
+              <div class="chart-container">
+                <canvas id="dividendHistoryChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h3>Members</h3>
+            <span>Member records and balances</span>
+          </div>
+          <div class="table-wrap">
+            <table id="membersTable">
+              <thead>
+                <tr>
+                  <th>Member ID</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Total CD</th>
+                  <th>Loan</th>
+                  <th>Paid</th>
+                  <th>Remaining</th>
+                  <th>Monthly Dividend</th>
+                  <th>Total Dividend</th>
+                  <th>RPD-25</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" id="loanSection">
+          <div class="panel-head">
+            <h3>Loan Table</h3>
+            <span>Requests, approvals, rejections, and history</span>
+          </div>
+
+          <form id="loanRequestForm" class="member-form-grid compact-form">
+            <select id="loanMemberSelect" required></select>
+            <button type="submit">Create Loan Request</button>
+          </form>
+
+          <div class="table-wrap">
+            <table id="loanTable">
+              <thead>
+                <tr>
+                  <th>Created</th>
+                  <th>Month</th>
+                  <th>Member</th>
+                  <th>Suggested</th>
+                  <th>Approved</th>
+                  <th>Paid</th>
+                  <th>Remaining</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h3>Monthly Transactions</h3>
+            <span>Closing statement table</span>
+          </div>
+          <div class="table-wrap">
+            <table id="txTable">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Member</th>
+                  <th>Loan Amount</th>
+                  <th>Paid Amount</th>
+                  <th>Remaining Amount</th>
+                  <th>Interest</th>
+                  <th>Monthly CD Amount</th>
+                  <th>Adj CD Amt</th>
+                  <th>Total Cumulative CD Amt</th>
+                  <th>Total CD Amt</th>
+                  <th>Monthly Dividend</th>
+                  <th>Total Dividend</th>
+                  <th>RPD-25</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/script.js"></script>
+  </body>
+</html>

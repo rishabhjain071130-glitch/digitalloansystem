@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Member Dashboard - Society Loan Management</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body class="dashboard-page">
+    <div class="bg-orb orb-a" aria-hidden="true"></div>
+    <div class="bg-orb orb-b" aria-hidden="true"></div>
+    <div class="bg-orb orb-c" aria-hidden="true"></div>
+
+    <div class="layout fade-in member-layout">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <p class="brand-chip">20 Members Society</p>
+          <h2>Member Dashboard</h2>
+        </div>
+
+        <nav class="side-nav">
+          <a class="active" href="/memberDashboard.html">My Dashboard</a>
+          <a href="#memberRecordsPanel">My Records</a>
+        </nav>
+
+        <div class="admin-actions">
+          <button id="memberRefreshBtn">Refresh Data</button>
+          <button id="memberLogoutBtn">Logout</button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div>
+            <h1 id="memberHeaderName">Member Dashboard</h1>
+            <p id="memberHeaderId">Member ID: -</p>
+          </div>
+          <div class="topbar-badge">Personal Account View</div>
+        </header>
+
+        <section class="cards" id="memberSummaryCards"></section>
+
+        <section class="panel" id="memberRecordsPanel">
+          <div class="panel-head">
+            <h3>My Financial Records</h3>
+            <span>Monthly statement history</span>
+          </div>
+          <div class="table-wrap">
+            <table id="memberRecordsTable">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Loan Amount</th>
+                  <th>Paid Amount</th>
+                  <th>Remaining Amount</th>
+                  <th>Interest</th>
+                  <th>Monthly CD Amount</th>
+                  <th>Adj CD Amt</th>
+                  <th>Total Cumulative CD Amt</th>
+                  <th>Total CD Amt</th>
+                  <th>Monthly Dividend</th>
+                  <th>Total Dividend</th>
+                  <th>RPD-25</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/script.js"></script>
+  </body>
+</html>

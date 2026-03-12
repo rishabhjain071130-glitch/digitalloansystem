@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login - Society Loan Management</title>
+    <link rel="stylesheet" href="/style.css"/>
+  </head>
+  <body class="login-page">
+    <div class="auth-wrap fade-in">
+      <div class="auth-card">
+        <h1>Login</h1>
+        <p class="subtitle">20 Members Society Loan Management System</p>
+        <form id="loginForm" class="stack-form">
+          <h2>Choose Your Role</h2>
+          <div>
+            <label><input type="radio" name="role" value="admin" checked /> Admin</label>
+            <label style="margin-left: 12px;"><input type="radio" name="role" value="member" /> Member</label>
+          </div>
+          <input type="email" id="email" placeholder="Admin Email" required />
+          <input type="password" id="password" placeholder="Password" required />
+          <button type="submit">Sign In</button>
+        </form>
+        <div id="statusMsg" class="status"></div>
+      </div>
+    </div>
+    <script src="/script.js"></script>
+  </body>
+</html>

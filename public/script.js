@@ -479,6 +479,15 @@ const loginForm = document.getElementById('loginForm');
 if (loginForm) {
   const roleRadios = document.querySelectorAll('input[name="role"]');
   const emailInput = document.getElementById('email');
+  const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+  const loginSubmitLabel = document.getElementById('loginSubmitLabel');
+
+  function setLoginLoading(isLoading) {
+    if (!loginSubmitBtn || !loginSubmitLabel) return;
+    loginSubmitBtn.disabled = isLoading;
+    loginSubmitBtn.classList.toggle('is-loading', isLoading);
+    loginSubmitLabel.textContent = isLoading ? 'Logging in...' : 'Sign In';
+  }
 
   function getSelectedRole() {
     const selected = document.querySelector('input[name="role"]:checked');
@@ -516,6 +525,7 @@ if (loginForm) {
     const role = getSelectedRole();
     const identifier = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
+    setLoginLoading(true);
 
     try {
       if (role === 'member') {
@@ -533,6 +543,8 @@ if (loginForm) {
       }
     } catch (error) {
       setStatus(error.message, true, 'statusMsg');
+    } finally {
+      setLoginLoading(false);
     }
   });
 }

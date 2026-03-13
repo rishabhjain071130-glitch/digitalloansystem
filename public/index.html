@@ -19,7 +19,10 @@
           </div>
           <input type="email" id="email" placeholder="Admin Email" required />
           <input type="password" id="password" placeholder="Password" required />
-          <button type="submit">Sign In</button>
+          <button type="submit" id="loginSubmitBtn">
+            <span id="loginSubmitLabel">Sign In</span>
+            <span id="loginSubmitSpinner" class="login-spinner" aria-hidden="true"></span>
+          </button>
         </form>
         <div id="statusMsg" class="status"></div>
       </div>

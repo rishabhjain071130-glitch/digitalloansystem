@@ -213,6 +213,19 @@ function animateValue(element, targetValue) {
 function setTableRows(tableId, rowsHtml) {
   const tbody = document.querySelector(`#${tableId} tbody`);
   if (tbody) tbody.innerHTML = rowsHtml;
+  if (tableId === 'membersTable') filterMembersTable();
+}
+
+function filterMembersTable() {
+  const input = document.getElementById('memberSearchInput');
+  const query = (input ? input.value : '').trim().toLowerCase();
+  const rows = document.querySelectorAll('#membersTable tbody tr');
+  rows.forEach((row) => {
+    // col 0 = Member ID, col 1 = Name
+    const memberId = (row.cells[0]?.textContent || '').toLowerCase();
+    const name = (row.cells[1]?.textContent || '').toLowerCase();
+    row.style.display = (!query || memberId.includes(query) || name.includes(query)) ? '' : 'none';
+  });
 }
 
 function setTableLoading(isLoading) {
@@ -706,6 +719,11 @@ if (memberManageForm) {
       setStatus(error.message, true, 'memberFormMsg');
     }
   });
+}
+
+const memberSearchInput = document.getElementById('memberSearchInput');
+if (memberSearchInput) {
+  memberSearchInput.addEventListener('input', filterMembersTable);
 }
 
 const cancelEditBtn = document.getElementById('cancelEditBtn');

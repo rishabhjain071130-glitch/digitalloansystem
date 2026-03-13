@@ -937,3 +937,28 @@ display:flex;
 flex-direction:column;
 gap:9px;
 }
+
+.member-search-wrap {
+  margin-bottom: 12px;
+}
+
+.member-search-wrap input[type="search"] {
+  width: 100%;
+  max-width: 340px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--white);
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.member-search-wrap input[type="search"]::placeholder {
+  color: var(--muted-2);
+}
+
+.member-search-wrap input[type="search"]:focus {
+  outline: none;
+  border-color: rgba(216, 176, 65, 0.6);
+}

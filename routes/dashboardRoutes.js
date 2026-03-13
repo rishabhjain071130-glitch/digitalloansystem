@@ -44,4 +44,129 @@ router.get('/api/dashboard/fund-pool', requireAdmin, async (req, res) => {
   }
 });
 
+router.get('/api/dashboard/payment-due', requireAdmin, async (req, res) => {
+  try {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(startOfToday);
+    endOfToday.setDate(endOfToday.getDate() + 1);
+
+    const results = await Member.aggregate([
+      {
+        $addFields: {
+          effectiveLastPaymentDate: { $ifNull: ['$lastPaymentDate', '$joinDate'] }
+        }
+      },
+      {
+        $addFields: {
+          effectiveNextDueDate: {
+            $ifNull: [
+              '$nextDueDate',
+              {
+                $dateAdd: {
+                  startDate: '$effectiveLastPaymentDate',
+                  unit: 'day',
+                  amount: 30
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        $addFields: {
+          dueStatus: {
+            $switch: {
+              branches: [
+                { case: { $lt: ['$effectiveNextDueDate', startOfToday] }, then: 'overdue' },
+                {
+                  case: {
+                    $and: [
+                      { $gte: ['$effectiveNextDueDate', startOfToday] },
+                      { $lt: ['$effectiveNextDueDate', endOfToday] }
+                    ]
+                  },
+                  then: 'dueToday'
+                },
+                { case: { $gte: ['$effectiveNextDueDate', endOfToday] }, then: 'upcoming' }
+              ],
+              default: 'upcoming'
+            }
+          }
+        }
+      },
+      {
+        $facet: {
+          summary: [
+            {
+              $group: {
+                _id: null,
+                totalMembers: { $sum: 1 },
+                dueToday: { $sum: { $cond: [{ $eq: ['$dueStatus', 'dueToday'] }, 1, 0] } },
+                overdue: { $sum: { $cond: [{ $eq: ['$dueStatus', 'overdue'] }, 1, 0] } },
+                upcomingDue: { $sum: { $cond: [{ $eq: ['$dueStatus', 'upcoming'] }, 1, 0] } }
+              }
+            }
+          ],
+          overdueMembers: [
+            { $match: { dueStatus: 'overdue' } },
+            { $sort: { effectiveNextDueDate: 1 } },
+            {
+              $project: {
+                _id: 1,
+                memberId: 1,
+                name: 1,
+                dueDate: '$effectiveNextDueDate',
+                status: '$dueStatus'
+              }
+            }
+          ],
+          dueTodayMembers: [
+            { $match: { dueStatus: 'dueToday' } },
+            { $sort: { effectiveNextDueDate: 1 } },
+            {
+              $project: {
+                _id: 1,
+                memberId: 1,
+                name: 1,
+                dueDate: '$effectiveNextDueDate',
+                status: '$dueStatus'
+              }
+            }
+          ],
+          upcomingMembers: [
+            { $match: { dueStatus: 'upcoming' } },
+            { $sort: { effectiveNextDueDate: 1 } },
+            { $limit: 10 },
+            {
+              $project: {
+                _id: 1,
+                memberId: 1,
+                name: 1,
+                dueDate: '$effectiveNextDueDate',
+                status: '$dueStatus'
+              }
+            }
+          ]
+        }
+      }
+    ]);
+
+    const payload = results[0] || {};
+    const summary = payload.summary?.[0] || { totalMembers: 0, dueToday: 0, overdue: 0, upcomingDue: 0 };
+
+    return res.json({
+      totalMembers: summary.totalMembers,
+      dueToday: summary.dueToday,
+      overdue: summary.overdue,
+      upcomingDue: summary.upcomingDue,
+      overdueMembers: payload.overdueMembers || [],
+      dueTodayMembers: payload.dueTodayMembers || [],
+      upcomingMembers: payload.upcomingMembers || []
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;

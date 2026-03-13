@@ -8,6 +8,8 @@ const memberSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true, select: false },
     joinDate: { type: Date, default: Date.now },
     monthlyCD: { type: Number, default: 5000 },
+    lastPaymentDate: { type: Date, default: Date.now },
+    nextDueDate: { type: Date, default: () => new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)) },
     totalCD: { type: Number, default: 0 },
     loanAmount: { type: Number, default: 0 },
     paidAmount: { type: Number, default: 0 },

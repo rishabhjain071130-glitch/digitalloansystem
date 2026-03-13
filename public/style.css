@@ -962,3 +962,83 @@ gap:9px;
   outline: none;
   border-color: rgba(216, 176, 65, 0.6);
 }
+
+.nav-overdue-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffeff2;
+  background: rgba(255, 74, 97, 0.9);
+  border: 1px solid rgba(255, 182, 191, 0.45);
+  box-shadow: 0 0 10px rgba(255, 74, 97, 0.35);
+}
+
+.due-alert-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 6px 0 12px;
+}
+
+.due-pill {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.due-today {
+  color: #ffc173;
+  background: rgba(255, 158, 55, 0.15);
+  border-color: rgba(255, 158, 55, 0.35);
+}
+
+.due-overdue {
+  color: #ff8f99;
+  background: rgba(255, 82, 102, 0.14);
+  border-color: rgba(255, 82, 102, 0.32);
+}
+
+.due-upcoming {
+  color: #8ab4ff;
+  background: rgba(91, 149, 255, 0.14);
+  border-color: rgba(91, 149, 255, 0.3);
+}
+
+.due-table-wrap table {
+  min-width: 560px;
+}
+
+.due-status {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.25px;
+  text-transform: uppercase;
+}
+
+.due-status-overdue {
+  color: #ff9ea8;
+  background: rgba(255, 66, 86, 0.18);
+}
+
+.due-status-dueToday {
+  color: #ffc174;
+  background: rgba(255, 158, 55, 0.2);
+}
+
+.due-status-upcoming {
+  color: #95beff;
+  background: rgba(80, 141, 255, 0.2);
+}

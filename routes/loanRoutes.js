@@ -215,6 +215,10 @@ router.post('/monthlyClose', requireAdmin, async (req, res) => {
         member.remainingAmount -= appliedPayment;
       }
 
+      const paymentDate = new Date();
+      member.lastPaymentDate = paymentDate;
+      member.nextDueDate = new Date(paymentDate.getTime() + (30 * 24 * 60 * 60 * 1000));
+
       await member.save();
     }
 

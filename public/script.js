@@ -5,6 +5,7 @@ const ADMIN_LAST_ACTIVITY_KEY = 'societyAdminLastActivity';
 const INACTIVITY_LIMIT_MS = 30 * 60 * 1000; // 30 minutes
 
 const cardsContainer = document.getElementById('summaryCards');
+const paymentDueSection = document.getElementById('paymentDueSection');
 
 let latestSummary = null;
 let resizeTimer = null;
@@ -346,6 +347,84 @@ function resetMemberForm() {
   hideGeneratedCredentials();
 }
 
+function formatDueDate(value) {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+function updateDashboardOverdueBadge(overdueCount) {
+  const navLink = document.getElementById('dashboardNavLink');
+  if (!navLink) return;
+
+  const currentBadge = navLink.querySelector('.nav-overdue-badge');
+  if (currentBadge) currentBadge.remove();
+
+  const count = Number(overdueCount || 0);
+  if (count <= 0) return;
+
+  const badge = document.createElement('span');
+  badge.className = 'nav-overdue-badge';
+  badge.textContent = String(count);
+  badge.setAttribute('aria-label', `${count} overdue payments`);
+  navLink.appendChild(badge);
+}
+
+async function loadPaymentDueAlerts() {
+  if (!paymentDueSection) return;
+
+  try {
+    const data = await api('/api/dashboard/payment-due');
+    updateDashboardOverdueBadge(data.overdue || 0);
+    const combinedDueRows = [
+      ...(data.overdueMembers || []),
+      ...(data.dueTodayMembers || []),
+      ...(data.upcomingMembers || []).slice(0, 5)
+    ];
+
+    paymentDueSection.innerHTML = `
+      <div class="panel-head">
+        <h3>Payment Due Alerts</h3>
+        <span>Monthly CD due tracker</span>
+      </div>
+      <div class="due-alert-summary">
+        <div class="due-pill due-today">&#9888; Payments Due Today: ${data.dueToday || 0}</div>
+        <div class="due-pill due-overdue">&#9888; Overdue Payments: ${data.overdue || 0}</div>
+        <div class="due-pill due-upcoming">Upcoming Payments: ${data.upcomingDue || 0}</div>
+      </div>
+      <div class="table-wrap due-table-wrap">
+        <table id="paymentDueTable">
+          <thead>
+            <tr>
+              <th>Member Name</th>
+              <th>Due Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${combinedDueRows.length === 0 ? '<tr><td colspan="3">No due reminders right now.</td></tr>' : combinedDueRows
+              .map((item) => `
+                <tr>
+                  <td>${item.name || '-'}</td>
+                  <td>${formatDueDate(item.dueDate)}</td>
+                  <td><span class="due-status due-status-${item.status}">${item.status === 'dueToday' ? 'Due Today' : item.status === 'overdue' ? 'Overdue' : 'Upcoming'}</span></td>
+                </tr>
+              `)
+              .join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (error) {
+    updateDashboardOverdueBadge(0);
+    paymentDueSection.innerHTML = `
+      <div class="panel-head">
+        <h3>Payment Due Alerts</h3>
+      </div>
+      <div class="status">${error.message}</div>
+    `;
+  }
+}
+
 function touchActivity() {
   if (!getAdminToken()) return;
   localStorage.setItem(ADMIN_LAST_ACTIVITY_KEY, Date.now().toString());
@@ -520,6 +599,7 @@ async function loadDashboard() {
 
     populateMemberSelect(data.members);
     renderCharts(data);
+    await loadPaymentDueAlerts();
   } catch (error) {
     cardsContainer.innerHTML = `<div class="card"><div class="title">Error</div><div class="value">${error.message}</div></div>`;
   } finally {

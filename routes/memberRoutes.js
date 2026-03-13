@@ -67,13 +67,16 @@ async function generateNextMemberCode() {
 }
 
 function buildMemberPayload({ name, email, monthlyCD, memberId, passwordHash }) {
+  const joinDate = new Date();
   return {
     memberId,
     name,
     email,
     passwordHash,
-    joinDate: new Date(),
+    joinDate,
     monthlyCD: monthlyCD ?? MONTHLY_CD,
+    lastPaymentDate: joinDate,
+    nextDueDate: new Date(joinDate.getTime() + (30 * 24 * 60 * 60 * 1000)),
     totalCD: JOINING_DEPOSIT,
     loanAmount: 0,
     paidAmount: 0,

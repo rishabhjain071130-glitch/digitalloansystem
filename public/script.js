@@ -1,6 +1,8 @@
 const ADMIN_TOKEN_KEY = 'societyAdminToken';
 const MEMBER_TOKEN_KEY = 'societyMemberToken';
 const MEMBER_ID_KEY = 'societyMemberId';
+const ADMIN_LAST_ACTIVITY_KEY = 'societyAdminLastActivity';
+const INACTIVITY_LIMIT_MS = 30 * 60 * 1000; // 30 minutes
 
 const cardsContainer = document.getElementById('summaryCards');
 
@@ -329,6 +331,34 @@ function resetMemberForm() {
   const saveBtn = document.getElementById('saveMemberBtn');
   if (saveBtn) saveBtn.textContent = 'Add Member';
   hideGeneratedCredentials();
+}
+
+function touchActivity() {
+  if (!getAdminToken()) return;
+  localStorage.setItem(ADMIN_LAST_ACTIVITY_KEY, Date.now().toString());
+}
+
+function startInactivityWatcher() {
+  touchActivity(); // seed timestamp on start
+
+  const WATCHED_EVENTS = ['mousemove', 'keydown', 'click', 'scroll'];
+  WATCHED_EVENTS.forEach((evt) => {
+    document.addEventListener(evt, touchActivity, { passive: true });
+  });
+
+  setInterval(() => {
+    if (!getAdminToken()) return;
+    const last = parseInt(localStorage.getItem(ADMIN_LAST_ACTIVITY_KEY) || '0', 10);
+    if (Date.now() - last >= INACTIVITY_LIMIT_MS) {
+      WATCHED_EVENTS.forEach((evt) => document.removeEventListener(evt, touchActivity));
+      clearAdminToken();
+      localStorage.removeItem(ADMIN_LAST_ACTIVITY_KEY);
+      showToast('error', 'Session expired. Please login again.');
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2500);
+    }
+  }, 30_000); // check every 30 seconds
 }
 
 async function loadFundPool() {
@@ -756,6 +786,7 @@ if (logoutBtn) {
     } catch (_error) {
     } finally {
       clearAdminToken();
+      localStorage.removeItem(ADMIN_LAST_ACTIVITY_KEY);
       window.location.href = '/';
     }
   });
@@ -850,6 +881,7 @@ if (cardsContainer) {
     if (getAdminToken()) {
       loadDashboard();
       loadFundPool();
+      startInactivityWatcher();
     }
   });
 

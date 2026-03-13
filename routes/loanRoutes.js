@@ -2,6 +2,7 @@ const express = require('express');
 const Member = require('../models/Member');
 const Loan = require('../models/Loan');
 const Transaction = require('../models/Transaction');
+const LedgerTransaction = require('../models/LedgerTransaction');
 
 const router = express.Router();
 const requireAdmin = (req, res, next) => req.app.locals.requireAdmin(req, res, next);
@@ -9,6 +10,24 @@ const requireAdmin = (req, res, next) => req.app.locals.requireAdmin(req, res, n
 const INTEREST_RATE = 0.06;
 const MONTHLY_CD = 5000;
 const MAX_LOANS_PER_MONTH = 4;
+
+function calculateMemberBalance(member) {
+  return Number(((member.totalCD || 0) - (member.remainingAmount || 0)).toFixed(2));
+}
+
+async function logLedgerTransaction(member, type, amount, description, date = new Date()) {
+  if (!member?.memberId) return;
+  if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) return;
+
+  await LedgerTransaction.create({
+    memberId: member.memberId,
+    date,
+    type,
+    amount: Number(Number(amount).toFixed(2)),
+    description,
+    balanceAfter: calculateMemberBalance(member)
+  });
+}
 
 function getMonthKey(date = new Date()) {
   const year = date.getFullYear();
@@ -116,6 +135,8 @@ router.post('/loan/decision', requireAdmin, async (req, res) => {
     member.remainingAmount += finalApproved;
     await member.save();
 
+    await logLedgerTransaction(member, 'LOAN_DISBURSEMENT', finalApproved, 'Loan issued to member');
+
     loan.suggestedAmount = suggestedAmount;
     loan.approvedAmount = finalApproved;
     loan.remainingAmount = Number(member.remainingAmount.toFixed(2));
@@ -160,6 +181,8 @@ router.post('/loan', requireAdmin, async (req, res) => {
     member.remainingAmount += finalApproved;
     await member.save();
 
+    await logLedgerTransaction(member, 'LOAN_DISBURSEMENT', finalApproved, 'Loan issued to member');
+
     const loan = await Loan.create({
       memberId: member._id,
       memberName: member.name,
@@ -198,21 +221,28 @@ router.post('/monthlyClose', requireAdmin, async (req, res) => {
 
     for (const member of members) {
       const paymentForMember = Number(payments[String(member._id)] || 0);
+      const cycleDate = new Date();
 
       member.monthlyCD = MONTHLY_CD;
       member.totalCD += MONTHLY_CD;
+
+      await logLedgerTransaction(member, 'CD_PAYMENT', MONTHLY_CD, 'Monthly CD deposit', cycleDate);
 
       const monthlyInterest = Number(((member.remainingAmount || 0) * (INTEREST_RATE / 12)).toFixed(2));
       if (monthlyInterest > 0) {
         member.interest += monthlyInterest;
         member.remainingAmount += monthlyInterest;
         totalInterestCollected += monthlyInterest;
+
+        await logLedgerTransaction(member, 'INTEREST_PAYMENT', monthlyInterest, 'Monthly interest applied', cycleDate);
       }
 
       if (paymentForMember > 0) {
         const appliedPayment = Math.min(paymentForMember, member.remainingAmount);
         member.paidAmount += appliedPayment;
         member.remainingAmount -= appliedPayment;
+
+        await logLedgerTransaction(member, 'LOAN_REPAYMENT', appliedPayment, 'Loan repayment received', cycleDate);
       }
 
       const paymentDate = new Date();
@@ -236,6 +266,8 @@ router.post('/monthlyClose', requireAdmin, async (req, res) => {
       member.totalDividend += monthlyDividend;
       member.rpd25 += rpdIncrement;
       await member.save();
+
+      await logLedgerTransaction(member, 'DIVIDEND', monthlyDividend, 'Monthly dividend distributed');
 
       const transaction = {
         memberId: member._id,

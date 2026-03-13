@@ -352,6 +352,22 @@ function formatDueDate(value) {
   return new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
+function formatShortDate(value) {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+}
+
+function formatLedgerType(type) {
+  const labels = {
+    CD_PAYMENT: 'CD Payment',
+    LOAN_DISBURSEMENT: 'Loan Issued',
+    LOAN_REPAYMENT: 'Loan Repayment',
+    INTEREST_PAYMENT: 'Interest Payment',
+    DIVIDEND: 'Dividend'
+  };
+  return labels[type] || String(type || '-');
+}
+
 function updateDashboardOverdueBadge(overdueCount) {
   const navLink = document.getElementById('dashboardNavLink');
   if (!navLink) return;
@@ -902,6 +918,8 @@ async function loadMemberDashboard() {
 
   try {
     const { member, records } = await api(`/api/member/${memberId}/records`);
+    const ledgerResult = await api(`/api/member/ledger/${memberId}`);
+    const ledgerRows = ledgerResult.ledger || [];
 
     document.getElementById('memberHeaderName').textContent = member.name;
     document.getElementById('memberHeaderId').textContent = `Member ID: ${member.memberId}`;
@@ -948,6 +966,25 @@ async function loadMemberDashboard() {
         `
         )
         .join('')
+    );
+
+    setTableRows(
+      'memberLedgerTable',
+      ledgerRows.length === 0
+        ? '<tr><td colspan="5">No ledger transactions found.</td></tr>'
+        : ledgerRows
+            .map(
+              (entry) => `
+              <tr>
+                <td>${formatShortDate(entry.date)}</td>
+                <td>${formatLedgerType(entry.type)}</td>
+                <td>${formatINR(entry.amount)}</td>
+                <td>${entry.description || '-'}</td>
+                <td>${formatINR(entry.balanceAfter)}</td>
+              </tr>
+            `
+            )
+            .join('')
     );
   } catch (error) {
     clearMemberSession();

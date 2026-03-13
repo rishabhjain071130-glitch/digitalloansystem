@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const Member = require('../models/Member');
 const Transaction = require('../models/Transaction');
+const LedgerTransaction = require('../models/LedgerTransaction');
 
 const router = express.Router();
 const requireAdmin = (req, res, next) => req.app.locals.requireAdmin(req, res, next);
@@ -292,6 +293,25 @@ router.get('/api/member/:memberId/records', requireMember, async (req, res) => {
 
     const records = await Transaction.find({ memberId: member._id }).sort({ month: -1, createdAt: -1 });
     return res.json({ member, records });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/api/member/ledger/:memberId', requireMember, async (req, res) => {
+  try {
+    const memberCode = req.params.memberId.toUpperCase();
+    const member = await Member.findOne({ memberId: memberCode });
+    if (!member) {
+      return res.status(404).json({ message: 'Member not found.' });
+    }
+
+    const ledger = await LedgerTransaction.find({ memberId: member.memberId })
+      .sort({ date: -1, createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    return res.json({ memberId: member.memberId, ledger });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

@@ -3,6 +3,7 @@ const Member = require('../models/Member');
 const Loan = require('../models/Loan');
 const Transaction = require('../models/Transaction');
 const LedgerTransaction = require('../models/LedgerTransaction');
+const Notification = require('../models/Notification');
 
 const router = express.Router();
 const requireAdmin = (req, res, next) => req.app.locals.requireAdmin(req, res, next);
@@ -26,6 +27,16 @@ async function logLedgerTransaction(member, type, amount, description, date = ne
     amount: Number(Number(amount).toFixed(2)),
     description,
     balanceAfter: calculateMemberBalance(member)
+  });
+}
+
+async function createMemberNotification(memberCode, message, type) {
+  if (!memberCode || !message) return;
+  await Notification.create({
+    memberId: memberCode,
+    message,
+    type,
+    isRead: false
   });
 }
 
@@ -136,6 +147,11 @@ router.post('/loan/decision', requireAdmin, async (req, res) => {
     await member.save();
 
     await logLedgerTransaction(member, 'LOAN_DISBURSEMENT', finalApproved, 'Loan issued to member');
+    await createMemberNotification(
+      member.memberId,
+      `Your loan of ${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(finalApproved)} has been approved.`,
+      'loan'
+    );
 
     loan.suggestedAmount = suggestedAmount;
     loan.approvedAmount = finalApproved;
@@ -182,6 +198,11 @@ router.post('/loan', requireAdmin, async (req, res) => {
     await member.save();
 
     await logLedgerTransaction(member, 'LOAN_DISBURSEMENT', finalApproved, 'Loan issued to member');
+    await createMemberNotification(
+      member.memberId,
+      `Your loan of ${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(finalApproved)} has been approved.`,
+      'loan'
+    );
 
     const loan = await Loan.create({
       memberId: member._id,
@@ -243,6 +264,11 @@ router.post('/monthlyClose', requireAdmin, async (req, res) => {
         member.remainingAmount -= appliedPayment;
 
         await logLedgerTransaction(member, 'LOAN_REPAYMENT', appliedPayment, 'Loan repayment received', cycleDate);
+        await createMemberNotification(
+          member.memberId,
+          `Loan repayment of ${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(appliedPayment)} has been recorded.`,
+          'repayment'
+        );
       }
 
       const paymentDate = new Date();
@@ -268,6 +294,13 @@ router.post('/monthlyClose', requireAdmin, async (req, res) => {
       await member.save();
 
       await logLedgerTransaction(member, 'DIVIDEND', monthlyDividend, 'Monthly dividend distributed');
+      if (monthlyDividend > 0) {
+        await createMemberNotification(
+          member.memberId,
+          `Dividend of ${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(monthlyDividend)} has been credited.`,
+          'dividend'
+        );
+      }
 
       const transaction = {
         memberId: member._id,

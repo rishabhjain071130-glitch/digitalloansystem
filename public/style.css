@@ -1042,3 +1042,31 @@ gap:9px;
   color: #95beff;
   background: rgba(80, 141, 255, 0.2);
 }
+
+.notification-list {
+  display: grid;
+  gap: 10px;
+}
+
+.notification-item {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.notification-unread {
+  border-color: rgba(216, 176, 65, 0.5);
+  background: rgba(216, 176, 65, 0.12);
+}
+
+.notification-message {
+  color: var(--white);
+  font-size: 14px;
+}
+
+.notification-meta {
+  margin-top: 4px;
+  color: var(--muted-2);
+  font-size: 12px;
+}

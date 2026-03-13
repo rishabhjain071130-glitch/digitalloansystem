@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const Member = require('../models/Member');
 const Transaction = require('../models/Transaction');
 const LedgerTransaction = require('../models/LedgerTransaction');
+const Notification = require('../models/Notification');
 
 const router = express.Router();
 const requireAdmin = (req, res, next) => req.app.locals.requireAdmin(req, res, next);
@@ -312,6 +313,61 @@ router.get('/api/member/ledger/:memberId', requireMember, async (req, res) => {
       .lean();
 
     return res.json({ memberId: member.memberId, ledger });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/api/member/notifications/:memberId', requireMember, async (req, res) => {
+  try {
+    const memberCode = req.params.memberId.toUpperCase();
+    const member = await Member.findOne({ memberId: memberCode });
+    if (!member) {
+      return res.status(404).json({ message: 'Member not found.' });
+    }
+
+    const notifications = await Notification.find({ memberId: member.memberId })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
+
+    return res.json({ memberId: member.memberId, notifications });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.put('/api/member/notifications/read/:memberId', requireMember, async (req, res) => {
+  try {
+    const memberCode = req.params.memberId.toUpperCase();
+    await Notification.updateMany({ memberId: memberCode, isRead: false }, { $set: { isRead: true } });
+    return res.json({ message: 'Notifications marked as read.' });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/api/notifications/create', requireAdmin, async (req, res) => {
+  try {
+    const { memberId, message, type = 'system' } = req.body;
+    if (!memberId || !message) {
+      return res.status(400).json({ message: 'memberId and message are required.' });
+    }
+
+    const memberCode = String(memberId).toUpperCase().trim();
+    const member = await Member.findOne({ memberId: memberCode });
+    if (!member) {
+      return res.status(404).json({ message: 'Member not found.' });
+    }
+
+    const notification = await Notification.create({
+      memberId: member.memberId,
+      message: String(message).trim(),
+      type: String(type).trim().toLowerCase(),
+      isRead: false
+    });
+
+    return res.status(201).json(notification);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

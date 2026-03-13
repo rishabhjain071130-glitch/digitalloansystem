@@ -368,6 +368,36 @@ function formatLedgerType(type) {
   return labels[type] || String(type || '-');
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderMemberNotifications(notifications) {
+  const list = document.getElementById('memberNotificationsList');
+  if (!list) return;
+
+  if (!notifications || notifications.length === 0) {
+    list.innerHTML = '<div class="notification-item">No notifications yet.</div>';
+    return;
+  }
+
+  list.innerHTML = notifications
+    .map(
+      (item) => `
+      <div class="notification-item ${item.isRead ? '' : 'notification-unread'}">
+        <div class="notification-message">&#128276; ${escapeHtml(item.message)}</div>
+        <div class="notification-meta">${formatShortDate(item.createdAt)}</div>
+      </div>
+    `
+    )
+    .join('');
+}
+
 function updateDashboardOverdueBadge(overdueCount) {
   const navLink = document.getElementById('dashboardNavLink');
   if (!navLink) return;
@@ -920,6 +950,8 @@ async function loadMemberDashboard() {
     const { member, records } = await api(`/api/member/${memberId}/records`);
     const ledgerResult = await api(`/api/member/ledger/${memberId}`);
     const ledgerRows = ledgerResult.ledger || [];
+    const notificationResult = await api(`/api/member/notifications/${memberId}`);
+    renderMemberNotifications(notificationResult.notifications || []);
 
     document.getElementById('memberHeaderName').textContent = member.name;
     document.getElementById('memberHeaderId').textContent = `Member ID: ${member.memberId}`;
@@ -996,6 +1028,20 @@ async function loadMemberDashboard() {
 const memberRefreshBtn = document.getElementById('memberRefreshBtn');
 if (memberRefreshBtn) {
   memberRefreshBtn.addEventListener('click', loadMemberDashboard);
+}
+
+const markNotificationsReadBtn = document.getElementById('markNotificationsReadBtn');
+if (markNotificationsReadBtn) {
+  markNotificationsReadBtn.addEventListener('click', async () => {
+    try {
+      const memberId = getMemberIdFromStorage();
+      if (!memberId) return;
+      await api(`/api/member/notifications/read/${memberId}`, 'PUT');
+      await loadMemberDashboard();
+    } catch (error) {
+      showToast('error', error.message || 'Unable to mark notifications as read');
+    }
+  });
 }
 
 const memberLogoutBtn = document.getElementById('memberLogoutBtn');

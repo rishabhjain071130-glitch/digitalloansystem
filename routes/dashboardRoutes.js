@@ -2,6 +2,7 @@ const express = require('express');
 const Member = require('../models/Member');
 const Loan = require('../models/Loan');
 const Transaction = require('../models/Transaction');
+const Notification = require('../models/Notification');
 
 const router = express.Router();
 const requireAdmin = (req, res, next) => req.app.locals.requireAdmin(req, res, next);
@@ -154,6 +155,39 @@ router.get('/api/dashboard/payment-due', requireAdmin, async (req, res) => {
 
     const payload = results[0] || {};
     const summary = payload.summary?.[0] || { totalMembers: 0, dueToday: 0, overdue: 0, upcomingDue: 0 };
+
+    const reminderCandidates = [
+      ...(payload.overdueMembers || []).map((item) => ({
+        memberId: item.memberId,
+        message: 'Loan repayment reminder: Your CD payment is overdue. Please pay immediately.',
+        type: 'reminder'
+      })),
+      ...(payload.dueTodayMembers || []).map((item) => ({
+        memberId: item.memberId,
+        message: 'CD payment reminder: Your monthly CD payment is due today.',
+        type: 'reminder'
+      }))
+    ];
+
+    await Promise.all(
+      reminderCandidates.map(async (entry) => {
+        const existing = await Notification.findOne({
+          memberId: entry.memberId,
+          message: entry.message,
+          type: entry.type,
+          createdAt: { $gte: startOfToday, $lt: endOfToday }
+        }).lean();
+
+        if (!existing) {
+          await Notification.create({
+            memberId: entry.memberId,
+            message: entry.message,
+            type: entry.type,
+            isRead: false
+          });
+        }
+      })
+    );
 
     return res.json({
       totalMembers: summary.totalMembers,

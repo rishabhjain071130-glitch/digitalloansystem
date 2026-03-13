@@ -21,6 +21,44 @@ function setStatus(message, isError = false, targetId = 'statusMsg') {
   node.style.color = isError ? '#ffb4c0' : '';
 }
 
+function getToastContainer() {
+  let container = document.getElementById('toastContainer');
+  if (container) return container;
+
+  container = document.createElement('div');
+  container.id = 'toastContainer';
+  container.className = 'toast-container';
+  container.setAttribute('aria-live', 'polite');
+  container.setAttribute('aria-atomic', 'false');
+  document.body.appendChild(container);
+  return container;
+}
+
+function showToast(type, message) {
+  const allowedTypes = new Set(['success', 'error', 'info']);
+  const normalizedType = allowedTypes.has(type) ? type : 'info';
+  const container = getToastContainer();
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${normalizedType}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add('is-visible');
+  });
+
+  setTimeout(() => {
+    toast.classList.remove('is-visible');
+    toast.classList.add('is-hiding');
+    setTimeout(() => {
+      toast.remove();
+    }, 260);
+  }, 4000);
+}
+
+window.showToast = showToast;
+
 function hideGeneratedCredentials() {
   const box = document.getElementById('generatedCredentialBox');
   if (!box) return;
@@ -293,6 +331,32 @@ function resetMemberForm() {
   hideGeneratedCredentials();
 }
 
+async function loadFundPool() {
+  const section = document.getElementById('fundPoolSection');
+  if (!section) return;
+
+  try {
+    const data = await api('/api/dashboard/fund-pool');
+    section.innerHTML = `
+      <div class="cards">
+        <div class="card fund-pool-card">
+          <div class="title">Total Fund Pool</div>
+          <div class="value" data-value="${formatINR(data.totalFundPool)}">${formatINR(data.totalFundPool)}</div>
+          <div class="card-sub-details">
+            <span>CD Collected: <strong>${formatINR(data.totalCDCollected)}</strong></span>
+            <span>Loans Given: <strong>${formatINR(data.totalLoansGiven)}</strong></span>
+            <span>Interest Earned: <strong>${formatINR(data.totalInterestEarned)}</strong></span>
+          </div>
+        </div>
+      </div>
+    `;
+    const valueEl = section.querySelector('.value');
+    if (valueEl) animateValue(valueEl, valueEl.getAttribute('data-value') || '0');
+  } catch (_error) {
+    section.innerHTML = '';
+  }
+}
+
 async function loadDashboard() {
   if (!cardsContainer) return;
 
@@ -543,6 +607,7 @@ if (loginForm) {
       }
     } catch (error) {
       setStatus(error.message, true, 'statusMsg');
+      showToast('error', error.message || 'Invalid login credentials');
     } finally {
       setLoginLoading(false);
     }
@@ -567,6 +632,7 @@ if (memberLoginForm) {
       window.location.href = '/memberDashboard.html';
     } catch (error) {
       setStatus(error.message, true, 'memberLoginMsg');
+      showToast('error', error.message || 'Invalid login credentials');
     }
   });
 }
@@ -596,6 +662,7 @@ if (memberManageForm) {
       } else {
         const created = await api('/members', 'POST', payload);
         showGeneratedCredentials(created.name, created.memberId, created.generatedPassword);
+        showToast('success', 'Member added successfully');
         setStatus(
           `Member added: ${created.name} (${created.memberId}) | Password: ${created.generatedPassword}`,
           false,
@@ -642,14 +709,15 @@ if (loanRequestForm) {
     try {
       await api('/loan/request', 'POST', { memberId: memberObjectId });
       await loadDashboard();
+      showToast('success', 'Loan created');
     } catch (error) {
-      alert(error.message);
+      showToast('error', error.message);
     }
   });
 }
 
 const refreshBtn = document.getElementById('refreshBtn');
-if (refreshBtn) refreshBtn.addEventListener('click', loadDashboard);
+if (refreshBtn) refreshBtn.addEventListener('click', () => { loadDashboard(); loadFundPool(); });
 
 const monthlyCloseBtn = document.getElementById('monthlyCloseBtn');
 if (monthlyCloseBtn) {
@@ -657,9 +725,9 @@ if (monthlyCloseBtn) {
     try {
       await api('/monthlyClose', 'POST', { payments: {} });
       await loadDashboard();
-      alert('Monthly closing completed successfully.');
+      showToast('success', 'Payment recorded');
     } catch (error) {
-      alert(error.message);
+      showToast('error', error.message);
     }
   });
 }
@@ -781,6 +849,7 @@ if (cardsContainer) {
   ensureDashboardAuth().then(() => {
     if (getAdminToken()) {
       loadDashboard();
+      loadFundPool();
     }
   });
 

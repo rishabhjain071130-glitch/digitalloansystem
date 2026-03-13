@@ -5,6 +5,7 @@ const crypto = require('crypto');
 
 const memberRoutes = require('./routes/memberRoutes');
 const loanRoutes = require('./routes/loanRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -104,6 +105,7 @@ app.post('/admin/logout', requireAdmin, (req, res) => {
 
 app.use('/', memberRoutes);
 app.use('/', loanRoutes);
+app.use('/', dashboardRoutes);
 
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });

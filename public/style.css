@@ -712,6 +712,20 @@ background:rgba(5,15,35,0.45);
 
 z-index:0;
 }
+
+.login-page .author-credit {
+position: fixed;
+bottom: 10px;
+right: 15px;
+font-size: 12px;
+font-weight: 500;
+letter-spacing: 0.4px;
+color: rgba(255, 255, 255, 0.7);
+font-family: "Georgia", "Times New Roman", serif;
+z-index: 3;
+pointer-events: none;
+}
+
 /* Dashboard background */
 .dashboard-page{
 

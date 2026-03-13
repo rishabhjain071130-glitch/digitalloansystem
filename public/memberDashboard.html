@@ -48,6 +48,27 @@
           <div id="memberNotificationsList" class="notification-list"></div>
         </section>
 
+        <section class="panel" id="memberPaymentPanel">
+          <div class="panel-head">
+            <h3>Monthly CD Payment</h3>
+            <span>Amount: ₹5000</span>
+          </div>
+          <div class="member-payment-actions">
+            <button id="toggleUpiQrBtn" class="btn-secondary" type="button">Show UPI QR</button>
+          </div>
+          <div id="upiQrWrap" class="upi-qr-wrap hidden">
+            <img src="/upi-qr.png" alt="UPI QR Code" class="upi-qr-image" />
+          </div>
+          <form id="memberPaymentForm" class="member-payment-form">
+            <input type="hidden" id="memberPaymentMemberId" />
+            <input type="hidden" id="memberPaymentType" value="CD" />
+            <input type="number" id="memberPaymentAmount" value="5000" min="1" readonly />
+            <input type="file" id="memberPaymentScreenshot" accept=".png,.jpg,.jpeg,image/png,image/jpeg" required />
+            <button type="submit">Submit Payment</button>
+          </form>
+          <div id="memberPaymentMsg" class="status"></div>
+        </section>
+
         <section class="panel" id="memberRecordsPanel">
           <div class="panel-head">
             <h3>My Financial Records</h3>

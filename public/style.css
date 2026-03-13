@@ -1070,3 +1070,38 @@ gap:9px;
   color: var(--muted-2);
   font-size: 12px;
 }
+
+.member-payment-actions {
+  margin-bottom: 10px;
+}
+
+.upi-qr-wrap {
+  margin-bottom: 12px;
+}
+
+.upi-qr-image {
+  width: 180px;
+  max-width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 8px;
+}
+
+.member-payment-form {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.member-payment-form input[type="number"],
+.member-payment-form input[type="file"] {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .member-payment-form {
+    grid-template-columns: 1fr;
+  }
+}

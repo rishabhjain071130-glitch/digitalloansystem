@@ -6,6 +6,7 @@ const INACTIVITY_LIMIT_MS = 30 * 60 * 1000; // 30 minutes
 
 const cardsContainer = document.getElementById('summaryCards');
 const paymentDueSection = document.getElementById('paymentDueSection');
+const pendingPaymentsSection = document.getElementById('pendingPaymentsSection');
 
 let latestSummary = null;
 let resizeTimer = null;
@@ -169,6 +170,27 @@ async function api(url, method = 'GET', body, isBinary = false) {
     throw new Error(data.message || 'Request failed');
   }
 
+  return data;
+}
+
+async function uploadMemberPayment(memberId, amount, type, screenshotFile) {
+  const token = getMemberToken();
+  const formData = new FormData();
+  formData.append('memberId', memberId);
+  formData.append('amount', String(amount));
+  formData.append('type', type);
+  formData.append('screenshot', screenshotFile);
+
+  const response = await fetch('/api/payments/create', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Payment submission failed.');
+  }
   return data;
 }
 
@@ -471,6 +493,76 @@ async function loadPaymentDueAlerts() {
   }
 }
 
+async function loadPendingPayments() {
+  if (!pendingPaymentsSection) return;
+
+  try {
+    const rows = await api('/api/admin/payments/pending');
+    pendingPaymentsSection.innerHTML = `
+      <div class="panel-head">
+        <h3>Pending Payments</h3>
+        <span>Screenshot-based approvals</span>
+      </div>
+      <div class="table-wrap">
+        <table id="pendingPaymentsTable">
+          <thead>
+            <tr>
+              <th>Member Name</th>
+              <th>Amount</th>
+              <th>Screenshot</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.length === 0 ? '<tr><td colspan="5">No pending payments.</td></tr>' : rows
+              .map(
+                (item) => `
+                <tr>
+                  <td>${item.memberName || item.memberId}</td>
+                  <td>${formatINR(item.amount)}</td>
+                  <td><a href="${item.screenshot}" target="_blank" rel="noopener noreferrer">View Screenshot</a></td>
+                  <td>${item.status}</td>
+                  <td>
+                    <button class="btn-small" onclick="approvePayment('${item._id}')">Approve</button>
+                    <button class="btn-small btn-danger" onclick="rejectPayment('${item._id}')">Reject</button>
+                  </td>
+                </tr>
+              `
+              )
+              .join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (error) {
+    pendingPaymentsSection.innerHTML = `
+      <div class="panel-head"><h3>Pending Payments</h3></div>
+      <div class="status">${error.message}</div>
+    `;
+  }
+}
+
+window.approvePayment = async function approvePayment(paymentId) {
+  try {
+    await api(`/api/admin/payments/approve/${paymentId}`, 'POST');
+    await loadPendingPayments();
+    showToast('success', 'Payment approved');
+  } catch (error) {
+    showToast('error', error.message || 'Unable to approve payment');
+  }
+};
+
+window.rejectPayment = async function rejectPayment(paymentId) {
+  try {
+    await api(`/api/admin/payments/reject/${paymentId}`, 'POST');
+    await loadPendingPayments();
+    showToast('success', 'Payment rejected');
+  } catch (error) {
+    showToast('error', error.message || 'Unable to reject payment');
+  }
+};
+
 function touchActivity() {
   if (!getAdminToken()) return;
   localStorage.setItem(ADMIN_LAST_ACTIVITY_KEY, Date.now().toString());
@@ -646,6 +738,7 @@ async function loadDashboard() {
     populateMemberSelect(data.members);
     renderCharts(data);
     await loadPaymentDueAlerts();
+    await loadPendingPayments();
   } catch (error) {
     cardsContainer.innerHTML = `<div class="card"><div class="title">Error</div><div class="value">${error.message}</div></div>`;
   } finally {
@@ -955,6 +1048,8 @@ async function loadMemberDashboard() {
 
     document.getElementById('memberHeaderName').textContent = member.name;
     document.getElementById('memberHeaderId').textContent = `Member ID: ${member.memberId}`;
+    const memberPaymentMemberId = document.getElementById('memberPaymentMemberId');
+    if (memberPaymentMemberId) memberPaymentMemberId.value = member.memberId;
 
     const cards = [
       ['Total CD', formatINR(member.totalCD)],
@@ -1040,6 +1135,45 @@ if (markNotificationsReadBtn) {
       await loadMemberDashboard();
     } catch (error) {
       showToast('error', error.message || 'Unable to mark notifications as read');
+    }
+  });
+}
+
+const toggleUpiQrBtn = document.getElementById('toggleUpiQrBtn');
+if (toggleUpiQrBtn) {
+  toggleUpiQrBtn.addEventListener('click', () => {
+    const qrWrap = document.getElementById('upiQrWrap');
+    if (!qrWrap) return;
+    const isHidden = qrWrap.classList.toggle('hidden');
+    toggleUpiQrBtn.textContent = isHidden ? 'Show UPI QR' : 'Hide UPI QR';
+  });
+}
+
+const memberPaymentForm = document.getElementById('memberPaymentForm');
+if (memberPaymentForm) {
+  memberPaymentForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const memberId = document.getElementById('memberPaymentMemberId')?.value || getMemberIdFromStorage();
+    const amount = Number(document.getElementById('memberPaymentAmount')?.value || 5000);
+    const type = (document.getElementById('memberPaymentType')?.value || 'CD').toUpperCase();
+    const screenshotInput = document.getElementById('memberPaymentScreenshot');
+    const file = screenshotInput?.files?.[0];
+
+    if (!memberId || !file) {
+      setStatus('Please select payment screenshot.', true, 'memberPaymentMsg');
+      return;
+    }
+
+    try {
+      await uploadMemberPayment(memberId, amount, type, file);
+      memberPaymentForm.reset();
+      document.getElementById('memberPaymentAmount').value = '5000';
+      setStatus('Payment submitted successfully. Awaiting admin approval.', false, 'memberPaymentMsg');
+      showToast('success', 'Payment submitted');
+      await loadMemberDashboard();
+    } catch (error) {
+      setStatus(error.message || 'Unable to submit payment.', true, 'memberPaymentMsg');
+      showToast('error', error.message || 'Unable to submit payment');
     }
   });
 }

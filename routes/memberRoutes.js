@@ -1,9 +1,13 @@
 const express = require('express');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
 const Member = require('../models/Member');
 const Transaction = require('../models/Transaction');
 const LedgerTransaction = require('../models/LedgerTransaction');
 const Notification = require('../models/Notification');
+const Payment = require('../models/Payment');
 
 const router = express.Router();
 const requireAdmin = (req, res, next) => req.app.locals.requireAdmin(req, res, next);
@@ -12,6 +16,30 @@ const MAX_MEMBERS = 19;
 const JOINING_DEPOSIT = 10000;
 const MONTHLY_CD = 5000;
 const memberSessionStore = new Map();
+
+const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `payment-${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowed.includes(file.mimetype)) {
+      return cb(new Error('Only png, jpg, jpeg files are allowed.'));
+    }
+    return cb(null, true);
+  }
+});
 
 function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
@@ -368,6 +396,124 @@ router.post('/api/notifications/create', requireAdmin, async (req, res) => {
     });
 
     return res.status(201).json(notification);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/api/payments/create', requireMember, (req, res) => {
+  upload.single('screenshot')(req, res, async (uploadError) => {
+    if (uploadError) {
+      return res.status(400).json({ message: uploadError.message || 'Invalid file upload.' });
+    }
+
+    try {
+      const { memberId, amount, type = 'CD' } = req.body;
+      const file = req.file;
+
+      if (!memberId || !amount || !file) {
+        return res.status(400).json({ message: 'memberId, amount, and screenshot are required.' });
+      }
+
+      const normalizedMemberId = String(memberId).toUpperCase().trim();
+      if (normalizedMemberId !== req.memberSession.memberId) {
+        return res.status(403).json({ message: 'You can submit only your own payment.' });
+      }
+
+      const numericAmount = Number(amount);
+      if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+        return res.status(400).json({ message: 'Invalid amount.' });
+      }
+
+      const payment = await Payment.create({
+        memberId: normalizedMemberId,
+        amount: Number(numericAmount.toFixed(2)),
+        type: String(type).trim().toUpperCase(),
+        status: 'pending',
+        screenshot: `/uploads/${file.filename}`
+      });
+
+      return res.status(201).json(payment);
+    } catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
+  });
+});
+
+router.get('/api/admin/payments/pending', requireAdmin, async (_req, res) => {
+  try {
+    const pending = await Payment.find({ status: 'pending' }).sort({ createdAt: -1 }).lean();
+    const memberCodes = [...new Set(pending.map((item) => item.memberId))];
+    const members = await Member.find({ memberId: { $in: memberCodes } }, { memberId: 1, name: 1, _id: 0 }).lean();
+    const memberMap = new Map(members.map((m) => [m.memberId, m.name]));
+
+    const enriched = pending.map((item) => ({
+      ...item,
+      memberName: memberMap.get(item.memberId) || item.memberId
+    }));
+
+    return res.json(enriched);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/api/admin/payments/approve/:paymentId', requireAdmin, async (req, res) => {
+  try {
+    const payment = await Payment.findById(req.params.paymentId);
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found.' });
+    }
+    if (payment.status !== 'pending') {
+      return res.status(400).json({ message: 'Only pending payments can be approved.' });
+    }
+
+    payment.status = 'approved';
+    payment.approvedAt = new Date();
+    await payment.save();
+
+    const member = await Member.findOne({ memberId: payment.memberId });
+    const balanceAfter = member
+      ? Number(((member.totalCD || 0) - (member.remainingAmount || 0)).toFixed(2))
+      : 0;
+
+    await LedgerTransaction.create({
+      memberId: payment.memberId,
+      date: payment.approvedAt,
+      type: 'CD_PAYMENT',
+      amount: Number(payment.amount.toFixed(2)),
+      description: 'Monthly CD payment',
+      balanceAfter
+    });
+
+    await Notification.create({
+      memberId: payment.memberId,
+      message: `Your CD payment of ${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(payment.amount)} has been approved.`,
+      type: 'payment',
+      isRead: false
+    });
+
+    return res.json({ message: 'Payment approved successfully.', payment });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/api/admin/payments/reject/:paymentId', requireAdmin, async (req, res) => {
+  try {
+    const payment = await Payment.findById(req.params.paymentId);
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found.' });
+    }
+    if (payment.status !== 'pending') {
+      return res.status(400).json({ message: 'Only pending payments can be rejected.' });
+    }
+
+    payment.status = 'rejected';
+    payment.approvedAt = null;
+    await payment.save();
+
+    return res.json({ message: 'Payment rejected successfully.', payment });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
